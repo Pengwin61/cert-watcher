@@ -40,31 +40,34 @@ func main() {
 		for _, path := range certList {
 
 			// Проверка на истечение срока действия
-			exp, cn, countDays := core.ExpirationCert(db, path)
-			if exp {
-				log.Printf("Сертификат %s истек срок действия\n", cn)
-				_ = notify.Send(context.Background(), fmt.Sprintf("Сертификат %s истекает срок действия", cn), fmt.Sprintf("осталось дней: %d", countDays))
-				continue
+			isExp, cn, countDays := core.ExpirationCert(db, path)
+			if isExp {
+				// log.Printf("Сертификат %s истек срок действия\n осталось дней: %d", cn, countDays)
+				if cn != "" && countDays > 0 {
+					_ = notify.Send(context.Background(), fmt.Sprintf("срок действия cертификата истекает"), fmt.Sprintf("%s осталось дней: %d \n", cn, countDays))
+					// _ = notify.Send(context.Background(), fmt.Sprintf("Certificate истекает"), fmt.Sprintf("%s осталось дней: %d \n", cn, countDays))
+				}
+
 			}
 
 			// Чтение сертификата
 			cert := core.ReadCert(core.GetFullPathToFile(path))
 
 			// Проверка сертификата
-			cert = core.Check(cert)
+			// cert = core.Check(cert)
 
 			// Поиск записи в БД по CN на наличие, если записи нет, то запись создается в БД
 			if err := db.Gorm.Where("cn = ?", cert.Subject.CommonName).First(&certificates).Error; err != nil {
 				if errors.Is(err, gorm.ErrRecordNotFound) {
-					log.Println("Запись не найдена:", cert.Subject.CommonName)
+					log.Printf("Запись %s не найдена:", cert.Subject.CommonName)
 					create(db, cert)
 				} else {
-					fmt.Println("Произошла ошибка при поиске записи:", err)
+					log.Println("Произошла ошибка при поиске записи:", err)
 				}
 			}
 		}
-		time.Sleep(30 * time.Second)
-		fmt.Println("Sleeping")
+		time.Sleep(60 * time.Second)
+		log.Println("Sleeping")
 	}
 
 }

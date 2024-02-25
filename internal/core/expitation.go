@@ -23,11 +23,12 @@ func exp(cert model.Certificate) (bool, string, time.Duration) {
 	// d := time.Now().Add(time.Duration(daysToExp) * time.Minute)
 	// fmt.Println("DAYS TO EXP: ", )
 
-	deathDay, _ := time.ParseDuration("1849h") // 70 day
+	deathDay, _ := time.ParseDuration("240h") // 70 day(1849h)
 
 	last := cert.After.Truncate(time.Hour * 24).Sub(time.Now().Truncate(time.Hour * 24))
 	countDays := last / time.Hour / 24
-	fmt.Printf("сертификату %30s осталось дней: %d\n", cert.CN, countDays)
+
+	fmt.Printf("сертификату %30s осталось дней: %d\n", cert.CN, last/time.Hour/24)
 
 	if last < deathDay {
 		return true, cert.CN, countDays
