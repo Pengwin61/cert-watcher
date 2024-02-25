@@ -8,7 +8,6 @@ import (
 	"errors"
 	"fmt"
 	"log"
-	"path/filepath"
 	"time"
 
 	"gorm.io/gorm"
@@ -18,8 +17,6 @@ const (
 	ROOT_PATH_CERT = "/Users/kirill/Documents/Git Repository/cert-watcher/cert/"
 )
 
-// var certificate *model.Certificate
-
 func main() {
 	var certificates []model.Certificate
 
@@ -28,11 +25,23 @@ func main() {
 	for {
 		certList := core.FindCertificate(ROOT_PATH_CERT)
 
+		// Проходим по списку путей с сертификатами
 		for _, path := range certList {
 
-			cert := core.ReadCert(getFullPathToFile(path))
-			cert = check(cert)
+			// Проверка на истечение срока действия
+			exp, cn := core.ExpirationCert(db, path)
+			if exp {
+				log.Printf("Сертификат %s истек срок действия\n", cn)
+				continue
+			}
 
+			// Чтение сертификата
+			cert := core.ReadCert(core.GetFullPathToFile(path))
+
+			// Проверка сертификата
+			cert = core.Check(cert)
+
+			// Поиск записи в БД по CN на наличие, если записи нет, то запись создается в БД
 			if err := db.Gorm.Where("cn = ?", cert.Subject.CommonName).First(&certificates).Error; err != nil {
 				if errors.Is(err, gorm.ErrRecordNotFound) {
 					log.Println("Запись не найдена:", cert.Subject.CommonName)
@@ -42,29 +51,10 @@ func main() {
 				}
 			}
 		}
-		time.Sleep(5 * time.Second)
+		time.Sleep(30 * time.Second)
 		fmt.Println("Sleeping")
 	}
-}
 
-func getFullPathToFile(path string) string {
-	return filepath.Join(path, "cert.pem")
-
-}
-
-func check(cert *x509.Certificate) *x509.Certificate {
-
-	if cert.Subject.Organization == nil {
-		cert.Subject.Organization = make([]string, 1)
-		cert.Subject.Organization[0] = cert.Issuer.CommonName
-
-	}
-
-	if cert.Subject.OrganizationalUnit == nil {
-		cert.Subject.OrganizationalUnit = make([]string, 1)
-		cert.Subject.OrganizationalUnit[0] = cert.Issuer.Organization[0]
-	}
-	return cert
 }
 
 func create(db *sqlite.Client, cert *x509.Certificate) {

@@ -6,6 +6,11 @@ import (
 	"path/filepath"
 )
 
+func GetFullPathToFile(path string) string {
+	return filepath.Join(path, "cert.pem")
+
+}
+
 func FindCertificate(path string) []string {
 
 	list := folderList(path)
