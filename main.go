@@ -2,14 +2,19 @@ package main
 
 import (
 	"cert-watcher/internal/core"
+	"cert-watcher/internal/notification"
 	"cert-watcher/internal/storage/model"
 	"cert-watcher/internal/storage/sqlite"
+	"context"
 	"crypto/x509"
 	"errors"
 	"fmt"
 	"log"
+	"os"
+	"strconv"
 	"time"
 
+	"github.com/nikoksr/notify"
 	"gorm.io/gorm"
 )
 
@@ -20,7 +25,13 @@ const (
 func main() {
 	var certificates []model.Certificate
 
+	// Инициализация БД
 	db := sqlite.NewClient()
+
+	// Инициализация Notify Telegram
+	chatID, _ := strconv.ParseInt(os.Getenv("TG_CHAT_ID"), 10, 64)
+	tg := notification.InitReceivers(os.Getenv("TG_BOT_TOKEN"), chatID)
+	notify.UseServices(tg)
 
 	for {
 		certList := core.FindCertificate(ROOT_PATH_CERT)
@@ -29,9 +40,10 @@ func main() {
 		for _, path := range certList {
 
 			// Проверка на истечение срока действия
-			exp, cn := core.ExpirationCert(db, path)
+			exp, cn, countDays := core.ExpirationCert(db, path)
 			if exp {
 				log.Printf("Сертификат %s истек срок действия\n", cn)
+				_ = notify.Send(context.Background(), fmt.Sprintf("Сертификат %s истекает срок действия", cn), fmt.Sprintf("осталось дней: %d", countDays))
 				continue
 			}
 

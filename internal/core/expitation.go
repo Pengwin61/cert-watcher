@@ -7,7 +7,7 @@ import (
 	"time"
 )
 
-func ExpirationCert(db *sqlite.Client, path string) (bool, string) {
+func ExpirationCert(db *sqlite.Client, path string) (bool, string, time.Duration) {
 	var certificate model.Certificate
 
 	cert := ReadCert(GetFullPathToFile(path))
@@ -18,7 +18,7 @@ func ExpirationCert(db *sqlite.Client, path string) (bool, string) {
 
 }
 
-func exp(cert model.Certificate) (bool, string) {
+func exp(cert model.Certificate) (bool, string, time.Duration) {
 	// daysToExp := days * 24 * 60
 	// d := time.Now().Add(time.Duration(daysToExp) * time.Minute)
 	// fmt.Println("DAYS TO EXP: ", )
@@ -26,10 +26,11 @@ func exp(cert model.Certificate) (bool, string) {
 	deathDay, _ := time.ParseDuration("1849h") // 70 day
 
 	last := cert.After.Truncate(time.Hour * 24).Sub(time.Now().Truncate(time.Hour * 24))
-	fmt.Printf("сертификату %30s осталось дней: %d\n", cert.CN, last/time.Hour/24)
+	countDays := last / time.Hour / 24
+	fmt.Printf("сертификату %30s осталось дней: %d\n", cert.CN, countDays)
 
 	if last < deathDay {
-		return true, cert.CN
+		return true, cert.CN, countDays
 	}
-	return false, cert.CN
+	return false, cert.CN, countDays
 }
